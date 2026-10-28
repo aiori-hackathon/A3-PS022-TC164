@@ -1,0 +1,3 @@
+sudo nft add table inet dns_filter
+sudo nft add chain inet dns_filter input { type filter hook input priority 0 \; }
+sudo nft add rule inet dns_filter input udp dport 53 meter flood_limit { ip saddr limit rate over 1000/second burst 100 packets } drop

@@ -1,0 +1,3 @@
+example.com A
+iitg.ac.in A
+aiori.org A
