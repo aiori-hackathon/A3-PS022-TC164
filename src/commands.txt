@@ -1,0 +1,47 @@
+TO HAVE A RESOLVER ON THE SERVER
+sudo ss -tulpn | grep :53
+sudo systemctl disable --now systemd-resolved
+sudo rm /etc/resolv.conf
+echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
+sudo apt update && sudo apt install -y dnsmasq
+sudo systemctl enable --now dnsmasq
+
+sudo tee /etc/dnsmasq.d/dns-lab.conf > /dev/null <<'EOF'
+port=53
+interface=eno1d1
+listen-address=10.10.1.2
+bind-interfaces
+no-resolv
+no-hosts
+address=/lab.test/192.0.2.10
+EOF
+
+sudo dnsmasq --test
+sudo systemctl restart dnsmasq
+sudo systemctl status dnsmasq --no-pager
+
+FOR NFTABLES METRICS 
+sudo nft add table inet dns_filter
+sudo nft add chain inet dns_filter input { type filter hook input priority 0 \; }
+sudo nft add rule inet dns_filter input udp dport 53 meter flood_limit { ip saddr limit rate over 1000/second burst 100 packets } drop
+
+FOR MEASURING THROUGHPUT
+sudo sar -u 1
+
+# Replace ens1f1np1 with your actual lab interface name on Host A
+sudo ip addr add 10.10.1.101/24 dev eno1d1
+sudo ip addr add 10.10.1.102/24 dev eno1d1
+sudo ip addr add 10.10.1.103/24 dev eno1d1
+sudo ip addr add 10.10.1.104/24 dev eno1d1
+sudo ip addr add 10.10.1.105/24 dev eno1d1
+
+sudo ./dns_tracer eth1 2>&1 | tee xdp_p1.log
+
+sar -u 1 45 > results/cpu_p3_nofilter.txt &
+sar -r 1 45 > results/memory_p3_nofilter.txt &
+sar -n DEV 1 45 > results/network_p3_nofilter.txt &
+wait
+
+for i in $(seq 106 125); do
+    sudo ip addr add 10.10.1.$i/24 dev eno1d1
+done

