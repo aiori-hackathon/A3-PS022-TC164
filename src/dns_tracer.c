@@ -283,8 +283,9 @@ int main(int argc, char **argv)
         goto out;
     }
 
-    err = bpf_xdp_attach(ifindex, bpf_program__fd(obj->progs.xdp_dns_parser),
-                         XDP_MODE, NULL);
+    err = bpf_set_link_xdp_fd(ifindex, 
+                          bpf_program__fd(obj->progs.xdp_dns_parser), 
+                          XDP_MODE);
     if (err) {
         fprintf(stderr, "Failed to attach XDP to %s: %s\n", ifname, strerror(-err));
         goto out;
@@ -315,7 +316,7 @@ int main(int argc, char **argv)
         sleep(1);
 
     print_stats(bpf_map__fd(obj->maps.stats));
-    bpf_xdp_detach(ifindex, XDP_MODE, NULL);
+    bpf_set_link_xdp_fd(ifindex, -1, XDP_MODE);
 
 out:
     dns_tracer_bpf__destroy(obj);
