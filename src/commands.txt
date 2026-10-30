@@ -43,5 +43,5 @@ sar -n DEV 1 45 > results/network_p3_nofilter.txt &
 wait
 
 for i in $(seq 106 125); do
-    sudo ip addr add 10.10.1.$i/24 dev eno1d1
+    sudo ip addr add 10.10.1.$i/24 dev  enp65s0f0np0
 done
